@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless task API with Lambda, API Gateway and DynamoDB
+Resources:
+  TasksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ServerlessTasks
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: id, AttributeType: S}]
+      KeySchema: [{AttributeName: id, KeyType: HASH}]
+  TasksApi:
+    Type: AWS::Serverless::Api
+    Properties: {StageName: v1, Cors: "'https://*'"}
+  TasksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: index.handler
+      CodeUri: ./src
+      Timeout: 10
+      Environment: {Variables: {TABLE_NAME: !Ref TasksTable}}
+      Policies: [{DynamoDBCrudPolicy: {TableName: !Ref TasksTable}}]
+      Events:
+        GetTasks: {Type: Api, Properties: {RestApiId: !Ref TasksApi, Path: /tasks, Method: GET}}
+        CreateTask: {Type: Api, Properties: {RestApiId: !Ref TasksApi, Path: /tasks, Method: POST}}
+        DeleteTask: {Type: Api, Properties: {RestApiId: !Ref TasksApi, Path: /tasks/{id}, Method: DELETE}}
+Outputs:
+  ApiUrl: {Description: API base URL, Value: !Sub 'https://${TasksApi}.execute-api.${AWS::Region}.amazonaws.com/v1/tasks'}
